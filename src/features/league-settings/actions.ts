@@ -12,7 +12,7 @@ export async function updateLeagueSettings(formData: FormData) {
   const data = settingsSchema.parse(Object.fromEntries(formData));
   const espnScoring = parseEspnScoring(formData);
   const { starters: rosterSlots, maximums: rosterMaximums } = parseEspnRoster(formData);
-  const team = await db.team.findFirst({ where: { id: data.teamId, userId: user.id }, select: { id: true } });
+  const team = await db.team.findFirst({ where: { id: data.teamId, userId: user.id }, select: { id: true, leagueId: true } });
   if (!team) throw new Error("Team not found");
   const { teamId, ...scoring } = data;
   const coreScoring = {
@@ -26,6 +26,6 @@ export async function updateLeagueSettings(formData: FormData) {
     receivingYardsPerPoint: espnScoring.receivingYard > 0 ? 10 / espnScoring.receivingYard : scoring.receivingYardsPerPoint,
     pointsPerReceivingTd: espnScoring.receivingTd,
   };
-  await db.leagueSettings.upsert({ where: { teamId }, update: { ...coreScoring, rosterSlots, rosterMaximums, espnScoring }, create: { teamId, ...coreScoring, rosterSlots, rosterMaximums, espnScoring } });
+  await db.leagueSettings.upsert({ where: { leagueId: team.leagueId }, update: { ...coreScoring, rosterSlots, rosterMaximums, espnScoring }, create: { leagueId: team.leagueId, ...coreScoring, rosterSlots, rosterMaximums, espnScoring } });
   revalidatePath(`/teams/${teamId}/settings`);
 }

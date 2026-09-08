@@ -5,8 +5,9 @@ const scarcity = { QB: .88, TQB: .88, RB: 1.12, WR: 1, TE: 1.08, DT: .8, DE: .85
 
 export function rankWaivers(roster: CandidatePlayer[], available: CandidatePlayer[]): WaiverResult[] {
   return available.map((add) => {
+    const interchangeable = ["RB", "WR", "TE"];
     const dropPool = roster
-      .filter((player) => player.position === add.position || ["RB", "WR", "TE"].includes(add.position))
+      .filter((player) => player.position === add.position || (interchangeable.includes(add.position) && interchangeable.includes(player.position)))
       .sort((a, b) => adjustedProjection(a) - adjustedProjection(b));
     const drop = dropPool[0];
     const projectedGain = adjustedProjection(add) - (drop ? adjustedProjection(drop) : 0);

@@ -19,4 +19,19 @@ describe("optimizeLineup", () => {
     const result = optimizeLineup([player("qb", "QB", 30), player("wr", "WR", 14), player("te", "TE", 12)], [{ slot: "WR_TE", count: 1 }]);
     expect(result.starters[0].player.id).toBe("wr");
   });
+
+  it("reserves the only quarterback for SUPERFLEX while filling FLEX with a skill player", () => {
+    const result = optimizeLineup([player("qb", "QB", 25), player("rb", "RB", 18)], [{ slot: "FLEX", count: 1 }, { slot: "SUPERFLEX", count: 1 }]);
+    expect(result.starters.find(entry => entry.slot === "SUPERFLEX")?.player.id).toBe("qb");
+  });
+
+  it("supports defensive-line, defensive-back, and defensive-player utility eligibility", () => {
+    const result = optimizeLineup([player("dt", "DT", 9), player("de", "DE", 8), player("cb", "CB", 7), player("s", "S", 6), player("lb", "LB", 10)], [{ slot: "DL", count: 1 }, { slot: "DB", count: 1 }, { slot: "DP", count: 1 }]);
+    expect(new Set(result.starters.map(entry => entry.player.id)).size).toBe(3);
+    expect(result.starters.find(entry => entry.slot === "DP")?.player.id).toBe("lb");
+  });
+
+  it("fails instead of returning an illegal incomplete lineup", () => {
+    expect(() => optimizeLineup([player("rb", "RB", 10)], [{ slot: "QB", count: 1 }])).toThrow(/cannot fill/i);
+  });
 });

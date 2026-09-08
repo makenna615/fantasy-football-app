@@ -29,10 +29,10 @@ const statSchema = z.object({
 
 export async function saveStatProjection(formData: FormData) {
   const user = await requireUser(); const data = statSchema.parse(Object.fromEntries(formData));
-  const player = await db.rosterPlayer.findFirst({ where: { id: data.rosterPlayerId, teamId: data.teamId, team: { userId: user.id } }, include: { team: { include: { leagueSettings: true } } } });
-  if (!player?.team.leagueSettings) throw new Error("Configure league settings first");
+  const player = await db.rosterPlayer.findFirst({ where: { id: data.rosterPlayerId, teamId: data.teamId, team: { userId: user.id } }, include: { team: { include: { league: { include: { settings: true } } } } } });
+  if (!player?.team.league.settings) throw new Error("Configure league settings first");
   const { teamId, rosterPlayerId, season, week, ...stats } = data;
-  const projectedPoints = scoreProjection(stats, player.team.leagueSettings);
+  const projectedPoints = scoreProjection(stats, player.team.league.settings);
   await db.weeklyProjection.upsert({ where: { rosterPlayerId_season_week_source: { rosterPlayerId, season, week, source: "SCORING_CALCULATOR" } }, update: { projectedPoints, floorPoints: projectedPoints * .65, ceilingPoints: projectedPoints * 1.4, sourcePayload: stats }, create: { rosterPlayerId, season, week, source: "SCORING_CALCULATOR", projectedPoints, floorPoints: projectedPoints * .65, ceilingPoints: projectedPoints * 1.4, sourcePayload: stats } });
   revalidatePath(`/teams/${teamId}/recommendations`);
 }

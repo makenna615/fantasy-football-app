@@ -58,6 +58,12 @@ docs/
 
 ## Incremental implementation roadmap
 
+## MVP data architecture update
+
+`User` owns leagues and managed teams. `League` owns shared `LeagueSettings` and can contain multiple `Team` records. `RosterPlayer` represents team membership and points at a canonical `Player`; provider identifiers live in `PlayerExternalId`. Imported projections, rankings, injuries, and NFL matchup facts attach to canonical players through `DataProvider`, while recommendations and waiver availability remain team-specific.
+
+Projection consumers depend on the normalized contract in `src/features/projections/provider.ts`. The repository gives manual team input precedence and then consumes imported sources without exposing provider payloads to the optimizer. See `docs/provider-contracts.md` for adapter requirements.
+
 1. **Foundation (complete):** responsive dashboard shell, complete initial Prisma schema, deterministic optimizer/waiver engine, unit-test seam, architecture decisions, environment contract.
 2. **Team setup (complete):** database-backed authentication, Prisma client and initial migration, team CRUD, roster editor, custom Zod-validated settings, ownership checks, and accessible forms.
 3. **Live recommendations (complete):** manual point/stat projections, scoring conversion, Server Actions, lineup persistence, waiver entry/ranking, and algorithm-versioned snapshots.

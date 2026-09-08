@@ -51,3 +51,7 @@ The health endpoint is `GET /api/health`.
 4. Deploy normally; `npm run build` generates Prisma Client before building Next.js.
 
 See [docs/architecture.md](docs/architecture.md) for architecture, algorithm details, provider boundaries, and the expansion roadmap.
+
+Visitors can use `/demo` without an account. The signed-in landing page for each team is the weekly **My Team** dashboard, with the optimal lineup, start/sit margins, risk signals, and a prominent **Waiver Wire Sniper** workflow.
+
+Administrators can import players, projections, rankings, injuries, and matchup data at `/admin/import`. Set `ADMIN_EMAILS` locally or assign the database `ADMIN` role. Provider requirements are documented in [docs/provider-contracts.md](docs/provider-contracts.md); scraping is intentionally not included.

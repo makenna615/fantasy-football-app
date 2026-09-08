@@ -9,4 +9,7 @@ describe("scoreProjection", () => {
       receivingYardsPerPoint: 10, pointsPerReceivingTd: 6,
     })).toBe(18);
   });
+  it("applies negative scoring without clamping", () => {
+    expect(scoreProjection({ interceptions: 3 }, { passingYardsPerPoint:25, pointsPerPassingTd:4, pointsPerInterception:-3, rushingYardsPerPoint:10, pointsPerRushingTd:6, pointsPerReception:0, receivingYardsPerPoint:10, pointsPerReceivingTd:6 })).toBe(-9);
+  });
 });

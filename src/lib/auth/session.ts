@@ -29,6 +29,13 @@ export async function requireUser() {
   return user;
 }
 
+export async function requireAdmin() {
+  const user = await requireUser();
+  const configured = (process.env.ADMIN_EMAILS ?? "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean);
+  if (user.role !== "ADMIN" && !configured.includes(user.email.toLowerCase())) redirect("/teams");
+  return user;
+}
+
 export async function deleteSession() {
   const jar = await cookies();
   const token = jar.get(COOKIE_NAME)?.value;

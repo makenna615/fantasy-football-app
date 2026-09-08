@@ -10,7 +10,10 @@ export async function addRosterPlayer(formData: FormData) {
   const data = rosterPlayerSchema.parse(Object.fromEntries(formData));
   const ownsTeam = await db.team.findFirst({ where: { id: data.teamId, userId: user.id }, select: { id: true } });
   if (!ownsTeam) throw new Error("Team not found");
-  await db.rosterPlayer.create({ data });
+  const { name, nflTeam, position, teamId, currentSlot } = data;
+  const player = await db.player.findFirst({ where: { fullName: { equals: name, mode: "insensitive" }, nflTeam, position } })
+    ?? await db.player.create({ data: { fullName: name, nflTeam, position } });
+  await db.rosterPlayer.create({ data: { teamId, currentSlot, playerId: player.id } });
   revalidatePath(`/teams/${data.teamId}/roster`);
 }
 

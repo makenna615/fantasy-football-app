@@ -65,15 +65,43 @@ enum RosterFormat {
   CUSTOM
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ProviderType {
+  MANUAL
+  CSV
+  API
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
   name         String?
   passwordHash String
+  role         UserRole  @default(USER)
   teams        Team[]
+  leagues      League[]
   sessions     Session[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+model League {
+  id          String             @id @default(cuid())
+  name        String
+  ownerId     String
+  owner       User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  settings    LeagueSettings?
+  teams       Team[]
+  matchups    LeagueMatchup[]
+  projections PlayerProjection[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([ownerId])
 }
 
 model Session {
@@ -93,22 +121,26 @@ model Team {
   name                  String
   userId                String
   user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  leagueSettings        LeagueSettings?
+  leagueId              String
+  league                League                 @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   rosterPlayers         RosterPlayer[]
   waiverRecommendations WaiverRecommendation[]
   lineupRecommendations LineupRecommendation[]
   waiverCandidates      WaiverCandidate[]
   weeklyReports         WeeklyTeamReport[]
+  matchups              LeagueMatchup[]        @relation("MatchupTeam")
+  opponentMatchups      LeagueMatchup[]        @relation("MatchupOpponent")
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
   @@index([userId])
+  @@index([leagueId])
 }
 
 model LeagueSettings {
   id                     String        @id @default(cuid())
-  teamId                 String        @unique
-  team                   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  leagueId               String        @unique
+  league                 League        @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   scoringFormat          ScoringFormat @default(HALF_PPR)
   rosterFormat           RosterFormat  @default(STANDARD)
   passingYardsPerPoint   Float         @default(25)
@@ -126,28 +158,76 @@ model LeagueSettings {
   updatedAt              DateTime      @updatedAt
 }
 
+model Player {
+  id            String             @id @default(cuid())
+  fullName      String
+  nflTeam       String
+  position      Position
+  active        Boolean            @default(true)
+  externalIds   PlayerExternalId[]
+  rosterEntries RosterPlayer[]
+  projections   PlayerProjection[]
+  rankings      PlayerRanking[]
+  injuries      PlayerInjury[]
+  matchups      PlayerMatchup[]
+  waiverEntries WaiverCandidate[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([fullName])
+  @@index([nflTeam, position])
+}
+
+model DataProvider {
+  id          String             @id @default(cuid())
+  key         String             @unique
+  name        String
+  type        ProviderType
+  active      Boolean            @default(true)
+  externalIds PlayerExternalId[]
+  projections PlayerProjection[]
+  rankings    PlayerRanking[]
+  injuries    PlayerInjury[]
+  matchups    PlayerMatchup[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model PlayerExternalId {
+  id         String       @id @default(cuid())
+  playerId   String
+  player     Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  externalId String
+
+  @@unique([providerId, externalId])
+  @@unique([playerId, providerId])
+}
+
 model RosterPlayer {
   id           String             @id @default(cuid())
   teamId       String
   team         Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  externalId   String?
-  name         String
-  nflTeam      String
-  position     Position
+  playerId     String
+  player       Player             @relation(fields: [playerId], references: [id], onDelete: Restrict)
   currentSlot  LineupSlot         @default(BENCH)
   injuryStatus String             @default("HEALTHY")
   projections  WeeklyProjection[]
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
-  @@index([teamId, position])
-  @@index([externalId])
+  @@unique([teamId, playerId])
+  @@index([teamId, currentSlot])
+  @@index([playerId])
 }
 
 model WaiverCandidate {
   id                 String   @id @default(cuid())
   teamId             String
   team               Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  playerId           String?
+  player             Player?  @relation(fields: [playerId], references: [id], onDelete: SetNull)
   name               String
   nflTeam            String
   position           Position
@@ -162,6 +242,102 @@ model WaiverCandidate {
   updatedAt          DateTime @updatedAt
 
   @@index([teamId, position])
+  @@index([playerId])
+}
+
+model PlayerProjection {
+  id              String       @id @default(cuid())
+  playerId        String
+  player          Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  providerId      String
+  provider        DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  leagueId        String?
+  league          League?      @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  season          Int
+  week            Int
+  projectedPoints Float
+  floorPoints     Float?
+  ceilingPoints   Float?
+  restOfSeason    Float?
+  consistency     Float        @default(0.5)
+  matchupRating   Float        @default(0)
+  sourcePayload   Json?
+  importedAt      DateTime     @default(now())
+
+  @@unique([playerId, providerId, leagueId, season, week])
+  @@index([season, week, providerId])
+}
+
+model PlayerRanking {
+  id         String       @id @default(cuid())
+  playerId   String
+  player     Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  season     Int
+  week       Int?
+  rank       Int
+  tier       Int?
+  value      Float?
+  importedAt DateTime     @default(now())
+
+  @@unique([playerId, providerId, season, week])
+  @@index([season, week, rank])
+}
+
+model PlayerInjury {
+  id         String       @id @default(cuid())
+  playerId   String
+  player     Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  season     Int
+  week       Int
+  status     String
+  details    String?
+  multiplier Float        @default(1)
+  importedAt DateTime     @default(now())
+
+  @@unique([playerId, providerId, season, week])
+  @@index([season, week, status])
+}
+
+model PlayerMatchup {
+  id            String       @id @default(cuid())
+  playerId      String
+  player        Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  providerId    String
+  provider      DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  season        Int
+  week          Int
+  opponent      String
+  home          Boolean
+  matchupRating Float        @default(0)
+  details       Json?
+  importedAt    DateTime     @default(now())
+
+  @@unique([playerId, providerId, season, week])
+  @@index([season, week, opponent])
+}
+
+model LeagueMatchup {
+  id                      String   @id @default(cuid())
+  leagueId                String
+  league                  League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  teamId                  String
+  team                    Team     @relation("MatchupTeam", fields: [teamId], references: [id], onDelete: Cascade)
+  opponentTeamId          String?
+  opponentTeam            Team?    @relation("MatchupOpponent", fields: [opponentTeamId], references: [id], onDelete: SetNull)
+  opponentName            String?
+  season                  Int
+  week                    Int
+  teamProjectedPoints     Float?
+  opponentProjectedPoints Float?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@unique([leagueId, teamId, season, week])
+  @@index([season, week])
 }
 
 model WeeklyProjection {

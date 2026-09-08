@@ -9,9 +9,9 @@ import { TeamNav } from "@/components/team-nav";
 
 export default async function SettingsPage({ params }: { params: Promise<{ teamId: string }> }) {
   const user = await requireUser(); const { teamId } = await params;
-  const team = await db.team.findFirst({ where: { id: teamId, userId: user.id }, include: { leagueSettings: true } });
+  const team = await db.team.findFirst({ where: { id: teamId, userId: user.id }, include: { league: { include: { settings: true } } } });
   if (!team) notFound();
-  const settings = team.leagueSettings;
+  const settings = team.league.settings;
   const storedSlots = (settings?.rosterSlots ?? {}) as Record<string, number>;
   const storedMaximums = (settings?.rosterMaximums ?? {}) as Record<string, number | null>;
   const storedEspn = (settings?.espnScoring ?? {}) as Record<string, number>;

@@ -11,4 +11,9 @@ describe("rankWaivers", () => {
     expect(results[0].drop?.id).toBe("rb-old");
     expect(results[0].projectedGain).toBeGreaterThan(0);
   });
+
+  it("never suggests dropping a quarterback for a flex-position pickup", () => {
+    const results = rankWaivers([player("qb", "QB", 2), player("rb", "RB", 8)], [player("wr", "WR", 14)]);
+    expect(results[0].drop?.id).toBe("rb");
+  });
 });

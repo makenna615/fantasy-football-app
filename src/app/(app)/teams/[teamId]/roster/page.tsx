@@ -12,7 +12,7 @@ const slotLabel = (slot: string) => slot === "BENCH" ? "BE" : slot.replaceAll("_
 
 export default async function RosterPage({ params }: { params: Promise<{ teamId: string }> }) {
   const user = await requireUser(); const { teamId } = await params;
-  const team = await db.team.findFirst({ where: { id: teamId, userId: user.id }, include: { rosterPlayers: { orderBy: [{ currentSlot: "asc" }, { name: "asc" }] } } });
+  const team = await db.team.findFirst({ where: { id: teamId, userId: user.id }, include: { rosterPlayers: { include: { player: true }, orderBy: [{ currentSlot: "asc" }, { player: { fullName: "asc" } }] } } });
   if (!team) notFound();
   return <main className="mx-auto max-w-6xl p-5 md:p-8">
     <p className="text-sm text-emerald-300">{team.name}</p><h1 className="mb-5 text-3xl font-bold">Roster management</h1><TeamNav teamId={team.id} active="roster"/>
@@ -20,7 +20,7 @@ export default async function RosterPage({ params }: { params: Promise<{ teamId:
       <section className="card overflow-hidden">
         <div className="grid grid-cols-[65px_1fr_65px_40px] border-b border-[#202a38] px-4 py-3 text-xs font-bold uppercase muted"><span>Slot</span><span>Player</span><span>Pos</span><span/></div>
         {team.rosterPlayers.length === 0 && <p className="p-8 text-center muted">No players yet. Add your roster manually.</p>}
-        {team.rosterPlayers.map(player => <div key={player.id} className="grid grid-cols-[65px_1fr_65px_40px] items-center border-b border-[#202a38] px-4 py-3 text-sm last:border-0"><span className="text-xs font-bold text-emerald-300">{slotLabel(player.currentSlot)}</span><span><b>{player.name}</b><small className="ml-2 muted">{player.nflTeam}</small></span><span className="muted">{player.position}</span><form action={removeRosterPlayer}><input type="hidden" name="teamId" value={team.id}/><input type="hidden" name="playerId" value={player.id}/><button aria-label={`Remove ${player.name}`} className="text-red-300"><Trash2 size={16}/></button></form></div>)}
+        {team.rosterPlayers.map(entry => <div key={entry.id} className="grid grid-cols-[65px_1fr_65px_40px] items-center border-b border-[#202a38] px-4 py-3 text-sm last:border-0"><span className="text-xs font-bold text-emerald-300">{slotLabel(entry.currentSlot)}</span><span><b>{entry.player.fullName}</b><small className="ml-2 muted">{entry.player.nflTeam}</small></span><span className="muted">{entry.player.position}</span><form action={removeRosterPlayer}><input type="hidden" name="teamId" value={team.id}/><input type="hidden" name="playerId" value={entry.id}/><button aria-label={`Remove ${entry.player.fullName}`} className="text-red-300"><Trash2 size={16}/></button></form></div>)}
       </section>
       <aside className="card h-fit p-5"><h2 className="mb-4 font-bold">Add player</h2><form action={addRosterPlayer} className="space-y-4">
         <input type="hidden" name="teamId" value={team.id}/><label className="field">Player name<input name="name" required maxLength={80}/></label>

@@ -11,7 +11,15 @@ const defaultSlots = { QB: 1, TQB: 0, RB: 2, RB_WR: 0, WR: 0, WR_TE: 2, TE: 0, F
 export async function createTeam(formData: FormData) {
   const user = await requireUser();
   const data = teamSchema.parse(Object.fromEntries(formData));
-  const team = await db.team.create({ data: { name: data.name, userId: user.id, leagueSettings: { create: { rosterSlots: defaultSlots } } } });
+  const league = await db.league.create({
+    data: {
+      name: `${data.name} League`, ownerId: user.id,
+      settings: { create: { rosterSlots: defaultSlots } },
+      teams: { create: { name: data.name, userId: user.id } },
+    },
+    include: { teams: true },
+  });
+  const team = league.teams[0];
   redirect(`/teams/${team.id}/roster`);
 }
 

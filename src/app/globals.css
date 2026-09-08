@@ -10,6 +10,7 @@ body { margin: 0; background: #070b12; color: #e8edf5; font-family: Arial, Helve
 .field input:focus, .field select:focus { border-color: #34d399; box-shadow: 0 0 0 2px rgb(52 211 153 / .12); }
 .button-primary { border-radius: .7rem; background: #34d399; padding: .7rem 1rem; color: #07110e; font-size: .875rem; font-weight: 800; cursor: pointer; }
 .button-primary:disabled { cursor: wait; opacity: .6; }
+.button-secondary { border: 1px solid #344154; border-radius: .7rem; padding: .7rem 1rem; font-size: .875rem; font-weight: 800; }
 .tab { margin-bottom: -1px; border-bottom: 2px solid transparent; padding: .75rem 1rem; color: #8592a6; font-size: .875rem; }
 .tab-active { border-color: #34d399; color: #6ee7b7; }
 .settings-number { width: 4.5rem; border: 1px solid #2a3545; border-radius: .5rem; background: #0a1019; padding: .45rem; color: #e8edf5; }
