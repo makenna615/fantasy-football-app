@@ -1,0 +1,16 @@
+node_modules
+.next
+.env
+.env.*
+!.env.example
+coverage
+*.log
+*.tsbuildinfo
+src/generated/prisma
+.vercel
+.idea
+.vscode
+*.pem
+*.key
+*.p12
+*.pfx

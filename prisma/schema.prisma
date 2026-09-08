@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Position {
+  QB
+  RB
+  WR
+  TE
+  K
+  DST
+}
+
+enum LineupSlot {
+  QB
+  RB
+  WR
+  TE
+  FLEX
+  SUPERFLEX
+  K
+  DST
+  BENCH
+}
+
+enum ScoringFormat {
+  STANDARD
+  HALF_PPR
+  FULL_PPR
+  CUSTOM
+}
+
+enum RosterFormat {
+  STANDARD
+  SUPERFLEX
+  CUSTOM
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  teams        Team[]
+  sessions     Session[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Team {
+  id                    String                 @id @default(cuid())
+  name                  String
+  userId                String
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leagueSettings        LeagueSettings?
+  rosterPlayers         RosterPlayer[]
+  waiverRecommendations WaiverRecommendation[]
+  lineupRecommendations LineupRecommendation[]
+  waiverCandidates      WaiverCandidate[]
+  weeklyReports         WeeklyTeamReport[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([userId])
+}
+
+model LeagueSettings {
+  id                     String        @id @default(cuid())
+  teamId                 String        @unique
+  team                   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  scoringFormat          ScoringFormat @default(HALF_PPR)
+  rosterFormat           RosterFormat  @default(STANDARD)
+  passingYardsPerPoint   Float         @default(25)
+  pointsPerPassingTd     Float         @default(4)
+  pointsPerInterception  Float         @default(-2)
+  rushingYardsPerPoint   Float         @default(10)
+  pointsPerRushingTd     Float         @default(6)
+  pointsPerReception     Float         @default(0.5)
+  receivingYardsPerPoint Float         @default(10)
+  pointsPerReceivingTd   Float         @default(6)
+  rosterSlots            Json
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+}
+
+model RosterPlayer {
+  id           String             @id @default(cuid())
+  teamId       String
+  team         Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  externalId   String?
+  name         String
+  nflTeam      String
+  position     Position
+  currentSlot  LineupSlot         @default(BENCH)
+  injuryStatus String             @default("HEALTHY")
+  projections  WeeklyProjection[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([teamId, position])
+  @@index([externalId])
+}
+
+model WaiverCandidate {
+  id                 String   @id @default(cuid())
+  teamId             String
+  team               Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name               String
+  nflTeam            String
+  position           Position
+  projectedPoints    Float
+  floorPoints        Float?
+  ceilingPoints      Float?
+  consistency        Float    @default(0.5)
+  matchupRating      Float    @default(0)
+  injuryMultiplier   Float    @default(1)
+  restOfSeasonPoints Float?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([teamId, position])
+}
+
+model WeeklyProjection {
+  id               String       @id @default(cuid())
+  rosterPlayerId   String
+  rosterPlayer     RosterPlayer @relation(fields: [rosterPlayerId], references: [id], onDelete: Cascade)
+  season           Int
+  week             Int
+  projectedPoints  Float
+  floorPoints      Float?
+  ceilingPoints    Float?
+  consistency      Float        @default(0.5)
+  matchupRating    Float        @default(0)
+  injuryMultiplier Float        @default(1)
+  source           String
+  sourcePayload    Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([rosterPlayerId, season, week, source])
+  @@index([season, week])
+}
+
+model LineupRecommendation {
+  id               String   @id @default(cuid())
+  teamId           String
+  team             Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  season           Int
+  week             Int
+  lineup           Json
+  alternatives     Json
+  projectedPoints  Float
+  confidence       Float
+  explanation      String?
+  algorithmVersion String
+  createdAt        DateTime @default(now())
+
+  @@index([teamId, season, week])
+}
+
+model WaiverRecommendation {
+  id                String   @id @default(cuid())
+  teamId            String
+  team              Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  season            Int
+  week              Int
+  addPlayer         Json
+  dropPlayer        Json?
+  priorityScore     Float
+  shortTermValue    Float
+  restOfSeasonValue Float
+  projectedGain     Float
+  explanation       String?
+  algorithmVersion  String
+  createdAt         DateTime @default(now())
+
+  @@index([teamId, season, week, priorityScore])
+}
+
+model WeeklyTeamReport {
+  id                String   @id @default(cuid())
+  teamId            String
+  team              Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  season            Int
+  week              Int
+  grade             String
+  strongestPosition Position
+  weakestPosition   Position
+  riskiestStarter   String?
+  bestBenchOption   String?
+  summary           String
+  algorithmVersion  String
+  createdAt         DateTime @default(now())
+
+  @@unique([teamId, season, week])
+  @@index([teamId, season, week])
+}

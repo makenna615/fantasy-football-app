@@ -1,0 +1,42 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { requireUser } from "@/lib/auth/session";
+import { db } from "@/lib/db";
+import { explainFacts } from "@/lib/ai/explanations";
+import { optimizeLineup } from "./lineup-optimizer";
+import { rankWaivers } from "./waiver-advisor";
+import type { CandidatePlayer, LineupSlot, SlotRequirement } from "./types";
+
+const contextSchema = z.object({ teamId: z.string().cuid(), season: z.coerce.number().int().min(2020).max(2100), week: z.coerce.number().int().min(1).max(18) });
+const json = (value: unknown) => JSON.parse(JSON.stringify(value));
+
+async function ownedTeam(teamId: string, userId: string) {
+  const team = await db.team.findFirst({ where: { id: teamId, userId }, include: { leagueSettings: true, rosterPlayers: true, waiverCandidates: true } });
+  if (!team) throw new Error("Team not found"); return team;
+}
+
+export async function generateLineup(formData: FormData) {
+  const user = await requireUser(); const context = contextSchema.parse(Object.fromEntries(formData)); const team = await ownedTeam(context.teamId, user.id);
+  if (!team.leagueSettings) throw new Error("Configure league settings first");
+  const rows = await db.weeklyProjection.findMany({ where: { rosterPlayer: { teamId: team.id }, season: context.season, week: context.week }, orderBy: { updatedAt: "desc" }, distinct: ["rosterPlayerId"], include: { rosterPlayer: true } });
+  const players: CandidatePlayer[] = rows.map(row => ({ id: row.rosterPlayerId, name: row.rosterPlayer.name, team: row.rosterPlayer.nflTeam, position: row.rosterPlayer.position, projectedPoints: row.projectedPoints, floorPoints: row.floorPoints ?? undefined, ceilingPoints: row.ceilingPoints ?? undefined, consistency: row.consistency, matchupRating: row.matchupRating, injuryMultiplier: row.injuryMultiplier }));
+  const slotCounts = team.leagueSettings.rosterSlots as Record<string, number>;
+  const requirements = Object.entries(slotCounts).filter(([slot, count]) => slot !== "BENCH" && count > 0).map(([slot, count]) => ({ slot: slot as LineupSlot, count })) satisfies SlotRequirement[];
+  const result = optimizeLineup(players, requirements);
+  const fallback = `This lineup projects for ${result.projectedPoints} points with ${Math.round(result.confidence * 100)}% confidence.`;
+  const explanation = await explainFacts({ type: "lineup", result }, fallback);
+  await db.lineupRecommendation.create({ data: { teamId: team.id, season: context.season, week: context.week, lineup: json(result.starters), alternatives: json(result.alternatives), projectedPoints: result.projectedPoints, confidence: result.confidence, explanation, algorithmVersion: "lineup-v1" } });
+  revalidatePath(`/teams/${team.id}/recommendations`);
+}
+
+export async function generateWaivers(formData: FormData) {
+  const user = await requireUser(); const context = contextSchema.parse(Object.fromEntries(formData)); const team = await ownedTeam(context.teamId, user.id);
+  const projections = await db.weeklyProjection.findMany({ where: { rosterPlayer: { teamId: team.id }, season: context.season, week: context.week }, include: { rosterPlayer: true }, orderBy: { updatedAt: "desc" }, distinct: ["rosterPlayerId"] });
+  const roster: CandidatePlayer[] = projections.map(row => ({ id: row.rosterPlayerId, name: row.rosterPlayer.name, team: row.rosterPlayer.nflTeam, position: row.rosterPlayer.position, projectedPoints: row.projectedPoints, ceilingPoints: row.ceilingPoints ?? undefined, consistency: row.consistency, matchupRating: row.matchupRating, injuryMultiplier: row.injuryMultiplier }));
+  const available: CandidatePlayer[] = team.waiverCandidates.map(row => ({ id: row.id, name: row.name, team: row.nflTeam, position: row.position, projectedPoints: row.projectedPoints, floorPoints: row.floorPoints ?? undefined, ceilingPoints: row.ceilingPoints ?? undefined, consistency: row.consistency, matchupRating: row.matchupRating, injuryMultiplier: row.injuryMultiplier, restOfSeasonPoints: row.restOfSeasonPoints ?? undefined }));
+  const results = rankWaivers(roster, available);
+  await db.$transaction([db.waiverRecommendation.deleteMany({ where: { teamId: team.id, season: context.season, week: context.week } }), ...results.map(result => db.waiverRecommendation.create({ data: { teamId: team.id, season: context.season, week: context.week, addPlayer: json(result.add), dropPlayer: result.drop ? json(result.drop) : undefined, priorityScore: result.priorityScore, shortTermValue: result.shortTermValue, restOfSeasonValue: result.restOfSeasonValue, projectedGain: result.projectedGain, explanation: `Add ${result.add.name}${result.drop ? ` and drop ${result.drop.name}` : ""}; projected weekly gain: ${result.projectedGain.toFixed(1)} points.`, algorithmVersion: "waiver-v1" } }))]);
+  revalidatePath(`/teams/${team.id}/waivers`);
+}
