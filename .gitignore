@@ -8,9 +8,11 @@ coverage
 *.tsbuildinfo
 src/generated/prisma
 .vercel
+.neon
 .idea
 .vscode
 *.pem
 *.key
 *.p12
 *.pfx
+.neon
