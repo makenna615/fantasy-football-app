@@ -1,7 +1,7 @@
 import { adjustedProjection } from "./lineup-optimizer";
 import type { CandidatePlayer, WaiverResult } from "./types";
 
-const scarcity = { QB: 0.88, RB: 1.12, WR: 1, TE: 1.08, K: 0.65, DST: 0.7 } as const;
+const scarcity = { QB: .88, TQB: .88, RB: 1.12, WR: 1, TE: 1.08, DT: .8, DE: .85, LB: .9, CB: .75, S: .78, K: .65, P: .55, HC: .5, DST: .7 } as const;
 
 export function rankWaivers(roster: CandidatePlayer[], available: CandidatePlayer[]): WaiverResult[] {
   return available.map((add) => {

@@ -14,4 +14,9 @@ describe("optimizeLineup", () => {
     expect(result.projectedPoints).toBe(86);
     expect(result.starters.map((entry) => entry.player.id)).toContain("rb3");
   });
+
+  it("fills WR/TE with only an eligible wide receiver or tight end", () => {
+    const result = optimizeLineup([player("qb", "QB", 30), player("wr", "WR", 14), player("te", "TE", 12)], [{ slot: "WR_TE", count: 1 }]);
+    expect(result.starters[0].player.id).toBe("wr");
+  });
 });

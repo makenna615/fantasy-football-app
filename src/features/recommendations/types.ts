@@ -1,5 +1,5 @@
-export type Position = "QB" | "RB" | "WR" | "TE" | "K" | "DST";
-export type LineupSlot = Position | "FLEX" | "SUPERFLEX" | "BENCH";
+export type Position = "QB" | "TQB" | "RB" | "WR" | "TE" | "DT" | "DE" | "LB" | "CB" | "S" | "K" | "P" | "HC" | "DST";
+export type LineupSlot = Position | "RB_WR" | "FLEX" | "WR_TE" | "OP" | "SUPERFLEX" | "DL" | "DB" | "DP" | "BENCH" | "IR";
 
 export interface CandidatePlayer {
   id: string;

@@ -24,7 +24,7 @@ Without Docker, create a PostgreSQL database using your preferred provider and r
 ## User workflow
 
 1. Register and create one or more teams.
-2. Configure league scoring and lineup slots.
+2. Configure the complete ESPN League Manager scoring catalog and lineup slots, including WR/TE, FLEX, and SUPERFLEX.
 3. Add roster players and assign their current slots.
 4. Enter weekly fantasy projections directly or calculate them from projected stats using league scoring.
 5. Generate the optimal lineup.

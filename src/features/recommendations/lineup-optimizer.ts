@@ -1,8 +1,9 @@
 import type { CandidatePlayer, LineupEntry, LineupResult, LineupSlot, SlotRequirement } from "./types";
 
 const eligible: Record<LineupSlot, CandidatePlayer["position"][]> = {
-  QB: ["QB"], RB: ["RB"], WR: ["WR"], TE: ["TE"], K: ["K"], DST: ["DST"],
-  FLEX: ["RB", "WR", "TE"], SUPERFLEX: ["QB", "RB", "WR", "TE"], BENCH: [],
+  QB: ["QB"], TQB: ["TQB", "QB"], RB: ["RB"], RB_WR: ["RB", "WR"], WR: ["WR"], TE: ["TE"], K: ["K"], P: ["P"], HC: ["HC"], DST: ["DST"],
+  FLEX: ["RB", "WR", "TE"], WR_TE: ["WR", "TE"], OP: ["QB", "TQB", "RB", "WR", "TE"], SUPERFLEX: ["QB", "RB", "WR", "TE"],
+  DT: ["DT"], DE: ["DE"], LB: ["LB"], DL: ["DT", "DE"], CB: ["CB"], S: ["S"], DB: ["CB", "S"], DP: ["DT", "DE", "LB", "CB", "S"], BENCH: [], IR: [],
 };
 
 export function adjustedProjection(player: CandidatePlayer): number {

@@ -3,29 +3,53 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 enum Position {
   QB
+  TQB
   RB
   WR
   TE
+  DT
+  DE
+  LB
+  CB
+  S
   K
+  P
+  HC
   DST
 }
 
 enum LineupSlot {
   QB
+  TQB
   RB
+  RB_WR
   WR
   TE
   FLEX
+  WR_TE
+  OP
   SUPERFLEX
+  DT
+  DE
+  LB
+  DL
+  CB
+  S
+  DB
+  DP
   K
+  P
+  HC
   DST
   BENCH
+  IR
 }
 
 enum ScoringFormat {
@@ -96,6 +120,8 @@ model LeagueSettings {
   receivingYardsPerPoint Float         @default(10)
   pointsPerReceivingTd   Float         @default(6)
   rosterSlots            Json
+  rosterMaximums         Json          @default("{}")
+  espnScoring            Json          @default("{}")
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 }

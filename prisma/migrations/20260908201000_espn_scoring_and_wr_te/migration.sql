@@ -1,0 +1,2 @@
+ALTER TYPE "LineupSlot" ADD VALUE 'WR_TE' AFTER 'FLEX';
+ALTER TABLE "LeagueSettings" ADD COLUMN "espnScoring" JSONB NOT NULL DEFAULT '{}';

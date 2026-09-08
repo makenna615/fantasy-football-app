@@ -9,5 +9,4 @@ export const settingsSchema = z.object({
   passingYardsPerPoint: number(1, 100), pointsPerPassingTd: number(0, 12), pointsPerInterception: number(-10, 0),
   rushingYardsPerPoint: number(1, 50), pointsPerRushingTd: number(0, 12), pointsPerReception: number(0, 3),
   receivingYardsPerPoint: number(1, 50), pointsPerReceivingTd: number(0, 12),
-  QB: number(0, 4), RB: number(0, 8), WR: number(0, 8), TE: number(0, 4), FLEX: number(0, 6), SUPERFLEX: number(0, 4), K: number(0, 3), DST: number(0, 3), BENCH: number(0, 20),
 });

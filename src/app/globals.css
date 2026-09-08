@@ -12,3 +12,4 @@ body { margin: 0; background: #070b12; color: #e8edf5; font-family: Arial, Helve
 .button-primary:disabled { cursor: wait; opacity: .6; }
 .tab { margin-bottom: -1px; border-bottom: 2px solid transparent; padding: .75rem 1rem; color: #8592a6; font-size: .875rem; }
 .tab-active { border-color: #34d399; color: #6ee7b7; }
+.settings-number { width: 4.5rem; border: 1px solid #2a3545; border-radius: .5rem; background: #0a1019; padding: .45rem; color: #e8edf5; }
