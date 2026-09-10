@@ -1,27 +1,29 @@
-# External data provider contracts
+# External data providers
 
-Fourth Down never passes provider-specific payloads into the recommendation engines. An adapter must resolve the provider's player identifier to `PlayerExternalId`, normalize its output, and persist source payloads for traceability.
+Fourth Down keeps provider payloads outside the recommendation engines. Adapters normalize data, resolve stable IDs to canonical `Player` records, and persist source metadata. The ESPN-style scoring engine converts projected statistics into league-specific fantasy points; OpenAI never calculates projections or changes rankings.
 
-## Player identity
+## Provider-neutral contracts
 
-Every provider supplies a stable `external_id`, full name, NFL team, and canonical position. Player imports run before dependent datasets. A provider ID maps to one canonical player, and a player has at most one ID per provider.
+Shared contracts live in `src/features/providers/contracts.ts`: `PlayerDataProvider`, `ProjectionProvider`, `InjuryProvider`, `StatsProvider`, and `MatchupProvider`. Provider IDs are mappings, not Fourth Down primary keys. Manual projections and CSV imports remain supported. Effective projection priority is manual override, scoring-calculator projection, configured provider projection, then existing fallback. Removing an override reveals the stored provider projection again.
 
-## Projection data
+## NFLverse
 
-Required: `external_id`, season, week, and projected fantasy points. Recommended: floor, ceiling, rest-of-season points, consistency from 0–1, and matchup rating from -5–5. Raw stats may be retained in `sourcePayload`; league scoring is applied before optimization when a source supplies statistics rather than fantasy points.
+NFLverse requires no API key. Fourth Down uses the official release assets for players, seasonal and weekly rosters, injuries, combined weekly player statistics, and schedules. URL construction is centralized in `src/features/providers/nflverse/urls.ts`.
 
-## Rankings
+NFL roster status remains separate from fantasy roster membership. Uncertain identity matches are recorded for admin review rather than silently merged. NFLverse data is used under its applicable licenses, including CC BY 4.0 for nflverse-data; preserve attribution and source metadata.
 
-Required: `external_id`, season, and rank. Optional: week, tier, and numeric value. Rankings provide future rest-of-season context and never override deterministic scoring.
+## Tank01 through RapidAPI
 
-## Injuries
+Tank01 is optional and server-only. Configure `RAPIDAPI_KEY` and the exact `TANK01_API_HOST` shown by RapidAPI in `.env.local`. The adapter calls `GET /getNFLProjections` with `X-RapidAPI-Key` and `X-RapidAPI-Host`, validates responses, uses a bulk weekly request, and caches results in PostgreSQL.
 
-Required: `external_id`, season, week, and status. Recommended: factual details and a documented availability multiplier from 0–1. AI text cannot change availability or rank.
+Tank01 projected statistics—not provider fantasy-point totals—flow through Fourth Down's scoring engine. A generic two-point conversion cannot safely be assigned to passing/rushing/receiving, and a field goal without distance cannot safely be assigned to an ESPN distance bucket. Such values are retained rather than guessed.
 
-## Matchups
+## Injury rules
 
-Required: `external_id`, season, week, opponent, and home/away. Optional: a normalized matchup rating from -5–5 and structured details. League opponent comparison belongs in `LeagueMatchup`, separate from NFL player matchup facts.
+Deterministic availability multipliers are: healthy/full `1.0`, questionable/limited `0.85`, did not practice `0.5`, doubtful `0.25`, and out/IR `0`. Unknown statuses remain neutral at `1.0`. Manual injury records coexist with provider records.
 
-## Future adapters
+## Refresh and failure behavior
 
-API integrations implement `ProjectionProvider` in `src/features/projections/provider.ts`. Sleeper, ESPN, Yahoo, and ranking vendors remain behind adapters and must not leak response shapes into the optimizer, waiver advisor, or UI. Scraping is intentionally out of scope.
+Dashboard reads use PostgreSQL, not live provider requests. The protected `GET /api/cron/sync` endpoint runs stale-aware synchronization with `Authorization: Bearer <CRON_SECRET>`. Suggested schedules are daily for players/rosters, several times daily for injuries, and no more frequently than the projection cache and RapidAPI plan allow.
+
+Transient Tank01 failures use bounded exponential backoff; authentication/validation errors and HTTP 429 are not retried. Provider failures never replace previous valid records. The application continues using manual data and CSV imports when Tank01 is absent or either provider is temporarily unavailable.

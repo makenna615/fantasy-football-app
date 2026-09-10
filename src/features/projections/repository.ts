@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import type { CandidatePlayer } from "@/features/recommendations/types";
 import type { NormalizedProjection } from "./provider";
 
+export function selectEffectiveProjection<T extends { source:string }, P>(manualRows:T[],providerProjection:P|undefined){return manualRows.find(row=>row.source==="MANUAL")??manualRows.find(row=>row.source==="SCORING_CALCULATOR")??providerProjection;}
+
 export async function loadTeamProjections(teamId: string, season: number, week: number): Promise<NormalizedProjection[]> {
   const team = await db.team.findUniqueOrThrow({
     where: { id: teamId },
@@ -14,9 +16,9 @@ export async function loadTeamProjections(teamId: string, season: number, week: 
     db.playerMatchup.findMany({ where: { playerId: { in: playerIds }, season, week }, orderBy: { importedAt: "desc" } }),
   ]);
   return team.rosterPlayers.flatMap(entry => {
-    const manual = entry.projections[0];
+    const manual = entry.projections.find(row => row.source === "MANUAL") ?? entry.projections.find(row => row.source === "SCORING_CALCULATOR");
     const external = provided.find(row => row.playerId === entry.playerId);
-    const projection = manual ?? external;
+    const projection = selectEffectiveProjection(entry.projections,external);
     if (!projection) return [];
     const injury = injuries.find(row => row.playerId === entry.playerId);
     const matchup = matchups.find(row => row.playerId === entry.playerId);
@@ -28,6 +30,9 @@ export async function loadTeamProjections(teamId: string, season: number, week: 
       consistency: projection.consistency, matchupRating: matchup?.matchupRating ?? projection.matchupRating,
       injuryMultiplier: injury?.multiplier ?? (manual?.injuryMultiplier ?? 1),
       source: manual?.source ?? external?.provider.key ?? "unknown",
+      updatedAt: manual?.updatedAt ?? external?.fetchedAt ?? new Date(0),
+      providerProjectedPoints: manual && external ? external.projectedPoints : undefined,
+      providerSource: manual && external ? external.provider.key : undefined,
     }];
   });
 }

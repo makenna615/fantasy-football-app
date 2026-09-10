@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { saveProjection, saveStatProjection } from "@/features/projections/actions";
+import { removeManualProjection, saveProjection, saveStatProjection } from "@/features/projections/actions";
 import { generateLineup } from "@/features/recommendations/actions";
 import { FormSubmit } from "@/components/form-submit";
 import { TeamNav } from "@/components/team-nav";
@@ -14,7 +14,7 @@ export default async function RecommendationsPage({ params }: { params: Promise<
   const team = await db.team.findFirst({
     where: { id: teamId, userId: user.id },
     include: {
-      rosterPlayers: { include: { player: true, projections: { where: { season, week }, orderBy: { updatedAt: "desc" }, take: 1 } }, orderBy: { player: { position: "asc" } } },
+      rosterPlayers: { include: { player: true, projections: { where: { season, week }, orderBy: { updatedAt: "desc" } } }, orderBy: { player: { position: "asc" } } },
       lineupRecommendations: { where: { season, week }, orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
@@ -31,6 +31,7 @@ export default async function RecommendationsPage({ params }: { params: Promise<
           <MiniField name="projectedPoints" label="Proj" value={p?.projectedPoints ?? 10}/><MiniField name="floorPoints" label="Floor" value={p?.floorPoints ?? 5}/><MiniField name="ceilingPoints" label="Ceil" value={p?.ceilingPoints ?? 18}/><MiniField name="consistency" label="Cons." value={p?.consistency ?? .5}/>
           <input type="hidden" name="matchupRating" value={p?.matchupRating ?? 0}/><input type="hidden" name="injuryMultiplier" value={p?.injuryMultiplier ?? 1}/><FormSubmit className="rounded-lg border border-[#344154] px-3 py-2 text-xs">Save</FormSubmit>
         </form>})}{team.rosterPlayers.length === 0 && <p className="muted">Add roster players first.</p>}</div>
+        {team.rosterPlayers.some(entry=>entry.projections.some(p=>p.source==="MANUAL"))&&<details className="mt-4"><summary className="cursor-pointer text-sm text-violet-300">Manage manual overrides</summary><div className="mt-2 flex flex-wrap gap-2">{team.rosterPlayers.filter(entry=>entry.projections.some(p=>p.source==="MANUAL")).map(entry=><form action={removeManualProjection} key={entry.id}><input type="hidden" name="teamId" value={team.id}/><input type="hidden" name="rosterPlayerId" value={entry.id}/><input type="hidden" name="season" value={season}/><input type="hidden" name="week" value={week}/><button className="button-secondary text-xs">Restore provider value for {entry.player.fullName}</button></form>)}</div></details>}
       </section>
       <aside className="space-y-4">
         <details className="card p-5"><summary className="cursor-pointer font-bold">Scoring calculator</summary><p className="my-3 text-sm muted">Convert a stat line using league scoring.</p><form action={saveStatProjection} className="space-y-2"><input type="hidden" name="teamId" value={team.id}/><input type="hidden" name="season" value={season}/><input type="hidden" name="week" value={week}/><label className="field">Player<select name="rosterPlayerId">{team.rosterPlayers.map(entry => <option key={entry.id} value={entry.id}>{entry.player.fullName}</option>)}</select></label><div className="grid grid-cols-2 gap-2">{[["passingYards","Pass yds"],["passingTouchdowns","Pass TD"],["interceptions","INT"],["rushingYards","Rush yds"],["rushingTouchdowns","Rush TD"],["receptions","Rec"],["receivingYards","Rec yds"],["receivingTouchdowns","Rec TD"]].map(([name,label]) => <label className="field" key={name}>{label}<input name={name} type="number" min="0" step="0.1" defaultValue="0"/></label>)}</div><FormSubmit className="button-primary w-full">Calculate & save</FormSubmit></form></details>

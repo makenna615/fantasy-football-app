@@ -1,0 +1,3 @@
+import {describe,expect,it} from "vitest";
+import {selectEffectiveProjection} from "./repository";
+describe("projection priority",()=>{const provider={projectedPoints:17.4};it("uses a manual override without destroying provider data",()=>expect(selectEffectiveProjection([{source:"MANUAL",projectedPoints:19}],provider)).toMatchObject({projectedPoints:19}));it("returns to provider data after override removal",()=>expect(selectEffectiveProjection([],provider)).toBe(provider));it("preserves missing projections instead of converting to zero",()=>expect(selectEffectiveProjection([],undefined)).toBeUndefined());});

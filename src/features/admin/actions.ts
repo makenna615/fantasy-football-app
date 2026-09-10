@@ -5,6 +5,7 @@ import { Position } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth/session";
 import { numberValue, parseCsv, required, type CsvRow } from "./csv";
+import { syncCurrentData, type SyncDataset } from "@/features/sync/service";
 
 const positions = new Set(Object.values(Position));
 const text = async (data: FormData) => { const file = data.get("file"); if (!(file instanceof File) || !file.size || file.size > 2_000_000) throw new Error("Choose a CSV file smaller than 2 MB"); return file.text(); };
@@ -15,6 +16,14 @@ export async function importCsv(formData: FormData) {
   const rows = parseCsv(await text(formData)); if (!rows.length) throw new Error("CSV contains no data rows");
   const provider = await db.dataProvider.upsert({ where: { key: providerKey }, update: { active: true }, create: { key: providerKey, name: providerKey, type: "CSV" } });
   for (const [index,row] of rows.entries()) { try { await importRow(kind, provider.id, row); } catch (error) { throw new Error(`Row ${index + 2}: ${error instanceof Error ? error.message : "invalid data"}`); } }
+  revalidatePath("/admin/import");
+}
+
+export async function syncProviderData(formData: FormData) {
+  await requireAdmin();
+  const requested=String(formData.get("dataset")||"all");
+  const datasets:SyncDataset[]=requested==="all"?["players","rosters","injuries","stats","matchups","projections"]:[requested as SyncDataset];
+  await syncCurrentData(datasets,true);
   revalidatePath("/admin/import");
 }
 

@@ -161,6 +161,8 @@ model LeagueSettings {
 model Player {
   id            String             @id @default(cuid())
   fullName      String
+  firstName     String?
+  lastName      String?
   nflTeam       String
   position      Position
   active        Boolean            @default(true)
@@ -171,6 +173,8 @@ model Player {
   injuries      PlayerInjury[]
   matchups      PlayerMatchup[]
   waiverEntries WaiverCandidate[]
+  nflRosters    NflRosterStatus[]
+  weeklyStats   PlayerWeeklyStat[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
@@ -179,27 +183,34 @@ model Player {
 }
 
 model DataProvider {
-  id          String             @id @default(cuid())
-  key         String             @unique
+  id          String                    @id @default(cuid())
+  key         String                    @unique
   name        String
   type        ProviderType
-  active      Boolean            @default(true)
+  active      Boolean                   @default(true)
   externalIds PlayerExternalId[]
   projections PlayerProjection[]
   rankings    PlayerRanking[]
   injuries    PlayerInjury[]
   matchups    PlayerMatchup[]
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  rosterRows  NflRosterStatus[]
+  weeklyStats PlayerWeeklyStat[]
+  syncRuns    ProviderSyncRun[]
+  unmatched   UnmatchedProviderRecord[]
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
 }
 
 model PlayerExternalId {
-  id         String       @id @default(cuid())
-  playerId   String
-  player     Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  providerId String
-  provider   DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  externalId String
+  id          String       @id @default(cuid())
+  playerId    String
+  player      Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  providerId  String
+  provider    DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  externalId  String
+  matchMethod String       @default("STABLE_ID")
+  confidence  Float        @default(1)
+  verifiedAt  DateTime?
 
   @@unique([providerId, externalId])
   @@unique([playerId, providerId])
@@ -262,6 +273,11 @@ model PlayerProjection {
   consistency     Float        @default(0.5)
   matchupRating   Float        @default(0)
   sourcePayload   Json?
+  projectedStats  Json?
+  sourceUpdatedAt DateTime?
+  fetchedAt       DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
   importedAt      DateTime     @default(now())
 
   @@unique([playerId, providerId, leagueId, season, week])
@@ -286,20 +302,111 @@ model PlayerRanking {
 }
 
 model PlayerInjury {
-  id         String       @id @default(cuid())
-  playerId   String
-  player     Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  providerId String
-  provider   DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  season     Int
-  week       Int
-  status     String
-  details    String?
-  multiplier Float        @default(1)
-  importedAt DateTime     @default(now())
+  id              String       @id @default(cuid())
+  playerId        String
+  player          Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  providerId      String
+  provider        DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  season          Int
+  week            Int
+  status          String
+  details         String?
+  team            String?
+  bodyPart        String?
+  practiceStatus  String?
+  reportDate      DateTime?
+  sourceUpdatedAt DateTime?
+  fetchedAt       DateTime     @default(now())
+  multiplier      Float        @default(1)
+  importedAt      DateTime     @default(now())
 
   @@unique([playerId, providerId, season, week])
   @@index([season, week, status])
+}
+
+model NflRosterStatus {
+  id            String       @id @default(cuid())
+  playerId      String
+  player        Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  providerId    String
+  provider      DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  season        Int
+  week          Int
+  nflTeam       String
+  status        String
+  depthPosition String?
+  jerseyNumber  String?
+  sourcePayload Json?
+  fetchedAt     DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([playerId, providerId, season, week])
+  @@index([season, week, nflTeam])
+}
+
+model PlayerWeeklyStat {
+  id            String       @id @default(cuid())
+  playerId      String
+  player        Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  providerId    String
+  provider      DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  season        Int
+  week          Int
+  nflTeam       String?
+  opponent      String?
+  stats         Json
+  sourcePayload Json?
+  fetchedAt     DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([playerId, providerId, season, week])
+  @@index([season, week])
+}
+
+model ProviderSyncRun {
+  id               String       @id @default(cuid())
+  providerId       String
+  provider         DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  dataset          String
+  status           String
+  season           Int?
+  week             Int?
+  received         Int          @default(0)
+  imported         Int          @default(0)
+  updated          Int          @default(0)
+  skipped          Int          @default(0)
+  unmatched        Int          @default(0)
+  stableIdMatches  Int          @default(0)
+  fallbackMatches  Int          @default(0)
+  ambiguousMatches Int          @default(0)
+  errors           Int          @default(0)
+  errorMessage     String?
+  startedAt        DateTime     @default(now())
+  completedAt      DateTime?
+
+  @@index([providerId, dataset, startedAt])
+}
+
+model UnmatchedProviderRecord {
+  id          String       @id @default(cuid())
+  providerId  String
+  provider    DataProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  dataset     String
+  externalId  String?
+  displayName String?
+  nflTeam     String?
+  position    String?
+  reason      String
+  payload     Json
+  resolvedAt  DateTime?
+  playerId    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([providerId, dataset, resolvedAt])
+  @@index([externalId])
 }
 
 model PlayerMatchup {

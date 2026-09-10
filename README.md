@@ -7,11 +7,11 @@ A full-stack fantasy football lineup optimizer and waiver advisor. Rankings are 
 Requirements: Node.js 20+, npm, and PostgreSQL 15+. Docker is optional.
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item .env.example .env.local
 npm install
 ```
 
-Set `DATABASE_URL` in `.env`. To run the included PostgreSQL container (after installing Docker Desktop):
+Set `DATABASE_URL` in `.env.local`. To run the included PostgreSQL container (after installing Docker Desktop):
 
 ```powershell
 npm run db:up
@@ -42,6 +42,12 @@ npm run db:studio    Inspect data with Prisma Studio
 ```
 
 The health endpoint is `GET /api/health`.
+
+## Automatic NFL data
+
+NFLverse synchronization works without credentials. Tank01 projections are optional; put `RAPIDAPI_KEY` and the exact RapidAPI host in `.env.local` as `TANK01_API_HOST`. Never use a `NEXT_PUBLIC_` prefix. Configure `PROJECTION_CACHE_MINUTES` (default `60`) and a strong `CRON_SECRET` for `/api/cron/sync`.
+
+Administrators can inspect source health, freshness, errors, unmatched players, and run syncs at `/admin/import`. Provider sync and manual CSV import coexist; failures preserve the last known good data.
 
 ## Deploy to Vercel
 

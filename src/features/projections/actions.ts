@@ -21,6 +21,15 @@ export async function saveProjection(formData: FormData) {
   revalidatePath(`/teams/${data.teamId}/recommendations`);
 }
 
+export async function removeManualProjection(formData: FormData) {
+  const user=await requireUser();
+  const data=z.object({teamId:z.string().cuid(),rosterPlayerId:z.string().cuid(),season:z.coerce.number().int(),week:z.coerce.number().int().min(1).max(18)}).parse(Object.fromEntries(formData));
+  const owned=await db.rosterPlayer.findFirst({where:{id:data.rosterPlayerId,teamId:data.teamId,team:{userId:user.id}},select:{id:true}});
+  if(!owned)throw new Error("Player not found");
+  await db.weeklyProjection.deleteMany({where:{rosterPlayerId:data.rosterPlayerId,season:data.season,week:data.week,source:"MANUAL"}});
+  revalidatePath(`/teams/${data.teamId}`); revalidatePath(`/teams/${data.teamId}/recommendations`);
+}
+
 const statSchema = z.object({
   teamId: z.string().cuid(), rosterPlayerId: z.string().cuid(), season: z.coerce.number().int(), week: z.coerce.number().int().min(1).max(18),
   passingYards: z.coerce.number().min(0), passingTouchdowns: z.coerce.number().min(0), interceptions: z.coerce.number().min(0),

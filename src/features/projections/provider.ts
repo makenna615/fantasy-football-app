@@ -15,6 +15,9 @@ export type NormalizedProjection = {
   matchupRating: number;
   injuryMultiplier: number;
   source: string;
+  updatedAt: Date;
+  providerProjectedPoints?: number;
+  providerSource?: string;
 };
 
 /** Boundary implemented by future API adapters and the current CSV/manual sources. */
