@@ -1,5 +1,6 @@
 # Fourth Down
 
+__This is currently a personal project, not a ready-to-use application__
 Fourth Down is a free, full-stack fantasy football lineup and waiver optimization application. Add your fantasy team and ESPN-style league settings, then use current NFL projections to generate an optimal lineup, compare start/sit options, and find waiver additions and drops.
 
 Recommendation math is deterministic. OpenAI is optional and is used only to explain results that Fourth Down has already calculated—it never creates projections, scores players, or changes rankings.
@@ -66,94 +67,10 @@ See [scoring coverage](docs/scoring-coverage.md) for fully supported, partial, a
 
 Provider data, fantasy roster membership, manual overrides, scoring results, and recommendation outputs remain separate database concepts. See [architecture](docs/architecture.md) and [provider contracts](docs/provider-contracts.md) for more detail.
 
-## Run locally
-
-Requirements:
-
-- Node.js 20 or newer
-- npm
-- A PostgreSQL-compatible database, such as Neon
-- Docker Desktop only if using the included local PostgreSQL container
-
-Install the project:
-
-```powershell
-git clone https://github.com/makenna615/fantasy-football-app.git
-Set-Location fantasy-football-app
-Copy-Item .env.example .env.local
-npm install
-```
-
-Configure at least `DATABASE_URL` and `DATABASE_URL_UNPOOLED` in `.env.local`. For the included Docker database instead:
-
-```powershell
-npm run db:up
-```
-
-Apply migrations and start the application:
-
-```powershell
-npm run db:migrate
-npm run dev
-```
-
-Open the local URL printed by Next.js, normally `http://localhost:3000`. The health endpoint is `GET /api/health`.
-
-## Environment variables
-
-Copy `.env.example` to `.env.local`; never commit `.env.local`.
-
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | Yes | Pooled application PostgreSQL connection |
-| `DATABASE_URL_UNPOOLED` | Yes | Direct connection used for Prisma migrations |
-| `NFLVERSE_ENABLED` | No | Enables automatic NFLverse synchronization |
-| `RAPIDAPI_KEY` | No | Server-only RapidAPI credential for Tank01 |
-| `TANK01_API_HOST` | With Tank01 | Exact Tank01 host supplied by RapidAPI |
-| `PROJECTION_CACHE_MINUTES` | No | Projection refresh interval; defaults to 60 minutes |
-| `CRON_SECRET` | For cron | Protects `/api/cron/sync` |
-| `OPENAI_API_KEY` | No | Enables AI-written explanations |
-| `OPENAI_MODEL` | No | OpenAI explanation model |
-| `ADMIN_EMAILS` | No | Comma-separated administrator accounts |
-
-Secrets must never use a `NEXT_PUBLIC_` prefix. Provider requests run only on the server.
-
-## Data synchronization
-
-Administrators can inspect data-source status, freshness, errors, identity matches, and unmatched records at `/admin/import`. Manual CSV imports remain available when an external provider is unavailable.
-
-Useful commands:
-
-```text
-npm run data:sync              Synchronize stale provider datasets
-npm run data:sync -- --force  Force all configured datasets to refresh
-npm run data:status            Show stored provider and sync status
-```
-
-The protected `GET /api/cron/sync` route can be scheduled by the deployment platform with `Authorization: Bearer <CRON_SECRET>`. Provider failures preserve the last successful data.
-
-## Testing and validation
-
-```text
-npm test             Run the full deterministic test suite
-npm run test:watch  Run tests in watch mode
-npm run build        Generate Prisma Client and create a production build
-npm run db:studio    Open Prisma Studio
-```
-
-Coverage includes scoring, Tank01 normalization, canonical identity matching, projection priority, roster eligibility, FLEX/SUPERFLEX/IDP lineup behavior, optimizer inputs, waiver inputs, and provider failure cases. Tests do not require live API credentials.
-
 ## Current limitations
 
+- Not yet deployed on Vercel app
 - Provider fields without enough detail are retained but not guessed—for example, field-goal makes without distance and aggregate touchdown types.
 - Tank01 did not supply forward-looking IDP projections in the verified dataset.
 - Some newly added or unsigned players may remain unmatched until a stable provider ID becomes available.
 - Deployment scheduling, backups, and production monitoring must be configured on the selected hosting platform.
-
-## Security
-
-- `.env`, `.env.local`, Neon metadata, private keys, and deployment output are Git-ignored.
-- RapidAPI, database, cron, and OpenAI credentials stay server-side.
-- Authentication and team ownership checks are enforced in server actions.
-- External payloads are validated before persistence.
-- OpenAI receives structured recommendation facts, not secrets, and cannot alter deterministic outputs.
